@@ -12,7 +12,7 @@ import java.nio.file.Path;
 import java.text.ParseException;
 import java.util.Date;
 import java.text.SimpleDateFormat;
-import java.util.List;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,22 +23,23 @@ public class CsvComplaintParser {
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
     public static void parse(String filePath, City city, ICollection<Complaint> outputList) {
-        try {
-            List<String> lines = Files.readAllLines(Path.of(filePath), StandardCharsets.UTF_8);
+        try (Stream<String> lines = Files.lines(Path.of(filePath), StandardCharsets.UTF_8)) {
+            lines
+                    .skip(1)   // (Skip header)
+                    .map(line -> line.split(";"))
+                    .map(fields -> {
+                        try {
+                            return switch (city) {
+                                case NYC -> parseNYCComplaint(fields);
+                                case CHI -> parseChicagoComplaint(fields);
+                            };
+                        } catch (ParseException e) {
+                            throw new RuntimeException("Error parsing: " + filePath, e);
+                        }
+                    })
+                    .forEach(outputList::add);
 
-            for (int i = 1; i < lines.size(); i++) {    // (Skip header)
-                String line = lines.get(i);
-                String[] fields = line.split(";");
-
-                Complaint complaint = switch (city) {
-                    case NYC -> parseNYCComplaint(fields);
-                    case CHI -> parseChicagoComplaint(fields);
-                };
-
-                outputList.add(complaint);
-            }
-
-        } catch (IOException | ParseException e) {
+        } catch (IOException e) {
             throw new RuntimeException("Error reading file: " + filePath, e);
         }
     }
