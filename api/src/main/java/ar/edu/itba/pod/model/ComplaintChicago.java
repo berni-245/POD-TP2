@@ -1,6 +1,8 @@
 package ar.edu.itba.pod.model;
 
-public class ComplaintCHI extends Complaint {
+import java.util.Date;
+
+public class ComplaintChicago extends Complaint {
     private String srNumber;
     private String srShortCode;
     private int streetNumber;
@@ -9,7 +11,7 @@ public class ComplaintCHI extends Complaint {
     private String streetType;
     private String communityArea;
 
-    public ComplaintCHI(String srNumber, String srShortCode, String agency, String status, String createdDate,
+    public ComplaintChicago(String srNumber, String srShortCode, String agency, String status, Date createdDate,
                             int streetNumber, String streetDirection, String streetName, String streetType,
                             String communityArea, double latitude, double longitude) {
         super(agency, status, createdDate, communityArea, latitude, longitude);
@@ -37,4 +39,5 @@ public class ComplaintCHI extends Complaint {
     public String getStreetDirection() { return streetDirection; }
     public String getStreetName() { return streetName; }
     public String getStreetType() { return streetType; }
+    public String getCommunityArea() { return communityArea; }
 }

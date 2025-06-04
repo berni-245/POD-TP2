@@ -1,11 +1,13 @@
 package ar.edu.itba.pod.model;
 
+import java.util.Date;
+
 public class ComplaintNYC extends Complaint {
     private long uniqueKey;
     private String complaintType;
     private String incidentAddress;
 
-    public ComplaintNYC(long uniqueKey, String createdDate, String agency, String complaintType, String incidentAddress,
+    public ComplaintNYC(long uniqueKey, Date createdDate, String agency, String complaintType, String incidentAddress,
                         String status, String borough, double latitude, double longitude) {
         super(agency, status, createdDate, borough, latitude, longitude);
         this.uniqueKey = uniqueKey;

@@ -1,14 +1,16 @@
 package ar.edu.itba.pod.model;
 
+import java.util.Date;
+
 public abstract class Complaint {
     protected String agency;
     protected String status;
-    protected String createdDate;
+    protected Date createdDate;
     protected String neighborhood;
     protected double latitude;
     protected double longitude;
 
-    public Complaint(String agency, String status, String createdDate, String neighborhood, double latitude, double longitude) {
+    public Complaint(String agency, String status, Date createdDate, String neighborhood, double latitude, double longitude) {
         this.agency = agency;
         this.status = status;
         this.createdDate = createdDate;
@@ -22,7 +24,7 @@ public abstract class Complaint {
 
     public String getAgency() { return agency; }
     public String getStatus() { return status; }
-    public String getCreatedDate() { return createdDate; }
+    public Date getCreatedDate() { return createdDate; }
     public String getNeighborhood() { return neighborhood; }
     public double getLatitude() { return latitude; }
     public double getLongitude() { return longitude; }
