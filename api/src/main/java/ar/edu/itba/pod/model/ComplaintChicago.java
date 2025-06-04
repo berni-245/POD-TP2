@@ -1,5 +1,9 @@
 package ar.edu.itba.pod.model;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+
+import java.io.IOException;
 import java.util.Date;
 
 public class ComplaintChicago extends Complaint {
@@ -40,4 +44,28 @@ public class ComplaintChicago extends Complaint {
     public String getStreetName() { return streetName; }
     public String getStreetType() { return streetType; }
     public String getCommunityArea() { return communityArea; }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        super.writeData(out);
+        out.writeUTF(srNumber);
+        out.writeUTF(srShortCode);
+        out.writeInt(streetNumber);
+        out.writeUTF(streetDirection);
+        out.writeUTF(streetName);
+        out.writeUTF(streetType);
+        out.writeUTF(communityArea);
+    }
+
+    @Override
+    public void readData(ObjectDataInput in) throws IOException {
+        super.readData(in);
+        srNumber = in.readUTF();
+        srShortCode = in.readUTF();
+        streetNumber = in.readInt();
+        streetDirection = in.readUTF();
+        streetName = in.readUTF();
+        streetType = in.readUTF();
+        communityArea = in.readUTF();
+    }
 }

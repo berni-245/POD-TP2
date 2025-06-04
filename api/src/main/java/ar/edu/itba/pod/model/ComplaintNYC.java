@@ -1,5 +1,9 @@
 package ar.edu.itba.pod.model;
 
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+
+import java.io.IOException;
 import java.util.Date;
 
 public class ComplaintNYC extends Complaint {
@@ -16,16 +20,26 @@ public class ComplaintNYC extends Complaint {
     }
 
     @Override
-    public String getId() {
-        return String.valueOf(uniqueKey);
+    public String getId() { return String.valueOf(uniqueKey); }
+
+    @Override
+    public String getAddress() { return incidentAddress; }
+
+    public String getComplaintType() { return complaintType; }
+
+    @Override
+    public void writeData(ObjectDataOutput out) throws IOException {
+        super.writeData(out);
+        out.writeLong(uniqueKey);
+        out.writeUTF(complaintType);
+        out.writeUTF(incidentAddress);
     }
 
     @Override
-    public String getAddress() {
-        return incidentAddress;
-    }
-
-    public String getComplaintType() {
-        return complaintType;
+    public void readData(ObjectDataInput in) throws IOException {
+        super.readData(in);
+        uniqueKey = in.readLong();
+        complaintType = in.readUTF();
+        incidentAddress = in.readUTF();
     }
 }
