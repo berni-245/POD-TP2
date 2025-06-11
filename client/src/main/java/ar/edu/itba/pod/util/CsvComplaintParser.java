@@ -3,17 +3,19 @@ package ar.edu.itba.pod.util;
 import ar.edu.itba.pod.model.Complaint;
 import ar.edu.itba.pod.model.ComplaintChicago;
 import ar.edu.itba.pod.model.ComplaintNYC;
-import com.hazelcast.core.ICollection;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.Date;
 import java.text.SimpleDateFormat;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import com.hazelcast.core.IMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,29 +24,46 @@ public class CsvComplaintParser {
     private static final Logger logger = LoggerFactory.getLogger(CsvComplaintParser.class);
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
-    public static void parse(String filePath, City city, ICollection<Complaint> outputList) {
+    public static City getCityFormat(String filePath) {
+        boolean isNYCFormat;
         try (Stream<String> lines = Files.lines(Path.of(filePath), StandardCharsets.UTF_8)) {
+            isNYCFormat = Arrays.stream(lines.findFirst().orElseThrow().split(";")).findFirst().orElseThrow().equals("Unique Key");
+        } catch (IOException e) {
+            throw new RuntimeException("Error reading file: " + filePath, e);
+        }
+        if (isNYCFormat)
+            return City.NYC;
+        return City.CHI;
+    }
+
+    public static void parseCsv(String complaintsPath, String typesPath, City city, Consumer<Complaint> addToKeyValueSource, IMap<String, String> types) {
+        switch (city) {
+            case CHI -> loadChicagoServiceTypes(typesPath, types);
+            case NYC -> loadNewYorkServiceTypes(typesPath, types);
+        }
+
+        try (Stream<String> lines = Files.lines(Path.of(complaintsPath), StandardCharsets.UTF_8)) {
             lines
                     .skip(1)   // (Skip header)
                     .map(line -> line.split(";"))
                     .map(fields -> {
                         try {
                             return switch (city) {
-                                case NYC -> parseNYCComplaint(fields);
-                                case CHI -> parseChicagoComplaint(fields);
+                                case NYC -> parseNewYorkCsv(fields);
+                                case CHI -> parseChicagoCsv(fields, types);
                             };
                         } catch (ParseException e) {
-                            throw new RuntimeException("Error parsing: " + filePath, e);
+                            throw new RuntimeException("Error parsing: " + complaintsPath, e);
                         }
                     })
-                    .forEach(outputList::add);
+                    .forEach(addToKeyValueSource);
 
         } catch (IOException e) {
-            throw new RuntimeException("Error reading file: " + filePath, e);
+            throw new RuntimeException("Error reading file: " + complaintsPath, e);
         }
     }
 
-    private static ComplaintNYC parseNYCComplaint(String[] fields) throws ParseException {
+    private static ComplaintNYC parseNewYorkCsv(String[] fields) throws ParseException {
         long complaintId = Long.parseLong(fields[0]);
         Date createdDate = dateFormat.parse(fields[1]);
         String agencyName = fields[2];
@@ -59,7 +78,7 @@ public class CsvComplaintParser {
                                     incidentAddress, status ,borough, latitude, longitude);
     }
 
-    private static ComplaintChicago parseChicagoComplaint(String[] fields) throws ParseException {
+    private static ComplaintChicago parseChicagoCsv(String[] fields, IMap<String, String> types) throws ParseException {
         String srNumber = fields[0];
         String srShortCode = fields[1];
         String ownerDepartment = fields[2];
@@ -73,8 +92,37 @@ public class CsvComplaintParser {
         double latitude = Double.parseDouble(fields[10]);
         double longitude = Double.parseDouble(fields[11]);
 
-        return new ComplaintChicago(srNumber, srShortCode, ownerDepartment, status,
+        return new ComplaintChicago(srNumber, srShortCode, types.get(srShortCode), ownerDepartment, status,
                                         creationDate, streetNumber, streetDirection, streetName,
                                         streetType, communityArea, latitude, longitude);
+    }
+
+    private static void loadNewYorkServiceTypes(String csvPath, IMap<String, String> serviceTypeList) {
+        try (Stream<String> lines = Files.lines(Path.of(csvPath), StandardCharsets.UTF_8)) {
+            lines
+                    .skip(1)
+                    .map(line -> line.split(";"))
+                    .forEach(fields -> {
+                        String serviceType = fields[0].trim();
+                        serviceTypeList.put(serviceType, serviceType);
+                    });
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load Chicago service types", e);
+        }
+    }
+
+    private static void loadChicagoServiceTypes(String csvPath, IMap<String, String> serviceTypeMap) {
+        try (Stream<String> lines = Files.lines(Path.of(csvPath), StandardCharsets.UTF_8)) {
+            lines
+                    .skip(1)
+                    .map(line -> line.split(";"))
+                    .forEach(fields -> {
+                        String shortCode = fields[0].trim();
+                        String serviceType = fields[1].trim();
+                        serviceTypeMap.put(shortCode, serviceType);
+                    });
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load Chicago service types", e);
+        }
     }
 }
