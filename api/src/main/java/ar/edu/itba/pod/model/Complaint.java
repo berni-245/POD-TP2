@@ -8,25 +8,28 @@ import java.io.IOException;
 import java.util.Date;
 
 public abstract class Complaint implements DataSerializable {
-    protected String agency;
-    protected String status;
-    protected Date createdDate;
-    protected String neighborhood;
-    protected double latitude;
-    protected double longitude;
+    private String agency;
+    private String status;
+    private Date createdDate;
+    private String neighborhood;
+    private double latitude;
+    private double longitude;
+    private String complaintType;
 
-    public Complaint(String agency, String status, Date createdDate, String neighborhood, double latitude, double longitude) {
+    public Complaint(String agency, String status, Date createdDate, String neighborhood, double latitude, double longitude, String complaintType) {
         this.agency = agency;
         this.status = status;
         this.createdDate = createdDate;
         this.neighborhood = neighborhood;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.complaintType = complaintType;
     }
 
     public abstract String getId();
     public abstract String getAddress();
 
+    public String getComplaintType() { return complaintType; }
     public String getAgency() { return agency; }
     public String getStatus() { return status; }
     public Date getCreatedDate() { return createdDate; }
@@ -42,6 +45,7 @@ public abstract class Complaint implements DataSerializable {
         out.writeUTF(neighborhood);
         out.writeDouble(latitude);
         out.writeDouble(longitude);
+        out.writeUTF(complaintType);
     }
 
     @Override
@@ -52,5 +56,6 @@ public abstract class Complaint implements DataSerializable {
         neighborhood = in.readUTF();
         latitude = in.readDouble();
         longitude = in.readDouble();
+        complaintType = in.readUTF();
     }
 }

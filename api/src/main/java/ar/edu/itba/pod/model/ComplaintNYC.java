@@ -8,14 +8,12 @@ import java.util.Date;
 
 public class ComplaintNYC extends Complaint {
     private long uniqueKey;
-    private String complaintType;
     private String incidentAddress;
 
     public ComplaintNYC(long uniqueKey, Date createdDate, String agency, String complaintType, String incidentAddress,
                         String status, String borough, double latitude, double longitude) {
-        super(agency, status, createdDate, borough, latitude, longitude);
+        super(agency, status, createdDate, borough, latitude, longitude, complaintType);
         this.uniqueKey = uniqueKey;
-        this.complaintType = complaintType;
         this.incidentAddress = incidentAddress;
     }
 
@@ -25,13 +23,10 @@ public class ComplaintNYC extends Complaint {
     @Override
     public String getAddress() { return incidentAddress; }
 
-    public String getComplaintType() { return complaintType; }
-
     @Override
     public void writeData(ObjectDataOutput out) throws IOException {
         super.writeData(out);
         out.writeLong(uniqueKey);
-        out.writeUTF(complaintType);
         out.writeUTF(incidentAddress);
     }
 
@@ -39,7 +34,6 @@ public class ComplaintNYC extends Complaint {
     public void readData(ObjectDataInput in) throws IOException {
         super.readData(in);
         uniqueKey = in.readLong();
-        complaintType = in.readUTF();
         incidentAddress = in.readUTF();
     }
 }

@@ -15,10 +15,10 @@ public class ComplaintChicago extends Complaint {
     private String streetType;
     private String communityArea;
 
-    public ComplaintChicago(String srNumber, String srShortCode, String agency, String status, Date createdDate,
+    public ComplaintChicago(String srNumber, String srShortCode, String complaintType, String agency, String status, Date createdDate,
                             int streetNumber, String streetDirection, String streetName, String streetType,
                             String communityArea, double latitude, double longitude) {
-        super(agency, status, createdDate, communityArea, latitude, longitude);
+        super(agency, status, createdDate, communityArea, latitude, longitude, complaintType);
         this.srNumber = srNumber;
         this.srShortCode = srShortCode;
         this.streetNumber = streetNumber;
