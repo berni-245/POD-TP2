@@ -4,6 +4,7 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 public class ComplaintChicago extends Complaint {
@@ -15,7 +16,12 @@ public class ComplaintChicago extends Complaint {
     private String streetType;
     private String communityArea;
 
-    public ComplaintChicago(String srNumber, String srShortCode, String complaintType, String agency, String status, Date createdDate,
+    public ComplaintChicago() {
+        super();
+        // empty for hazelcast
+    }
+
+    public ComplaintChicago(String srNumber, String srShortCode, String complaintType, String agency, String status, LocalDateTime createdDate,
                             int streetNumber, String streetDirection, String streetName, String streetType,
                             String communityArea, double latitude, double longitude) {
         super(agency, status, createdDate, communityArea, latitude, longitude, complaintType);
@@ -34,8 +40,8 @@ public class ComplaintChicago extends Complaint {
     }
 
     @Override
-    public String getAddress() {
-        return streetNumber + " " + streetDirection + " " + streetName + " " + streetType;
+    public String getStreet() {
+        return streetDirection + " " + streetName + " " + streetType;
     }
 
     public String getSrShortCode() { return srShortCode; }

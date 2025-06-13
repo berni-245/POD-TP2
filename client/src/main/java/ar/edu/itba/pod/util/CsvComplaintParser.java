@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.ParseException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Date;
 import java.text.SimpleDateFormat;
@@ -22,7 +24,7 @@ import org.slf4j.LoggerFactory;
 public class CsvComplaintParser {
 
     private static final Logger logger = LoggerFactory.getLogger(CsvComplaintParser.class);
-    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    private static final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public static City getCityFormat(String filePath) {
         boolean isNYCFormat;
@@ -65,8 +67,7 @@ public class CsvComplaintParser {
 
     private static ComplaintNYC parseNewYorkCsv(String[] fields) throws ParseException {
         long complaintId = Long.parseLong(fields[0]);
-        Date createdDate = dateFormat.parse(fields[1]);
-        String agencyName = fields[2];
+        LocalDateTime createdDate = LocalDateTime.parse(fields[1], dateFormat);        String agencyName = fields[2];
         String complaintType = fields[3];
         String incidentAddress = fields[4];
         String status = fields[5];
@@ -83,7 +84,7 @@ public class CsvComplaintParser {
         String srShortCode = fields[1];
         String ownerDepartment = fields[2];
         String status = fields[3];
-        Date creationDate = dateFormat.parse(fields[4]);
+        LocalDateTime creationDate = LocalDateTime.parse(fields[4], dateFormat);
         int streetNumber = Integer.parseInt(fields[5]);
         String streetDirection = fields[6];
         String streetName = fields[7];

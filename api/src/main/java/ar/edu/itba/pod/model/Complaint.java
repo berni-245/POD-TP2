@@ -5,18 +5,23 @@ import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.DataSerializable;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 public abstract class Complaint implements DataSerializable {
     private String agency;
     private String status;
-    private Date createdDate;
+    private LocalDateTime createdDate;
     private String neighborhood;
     private double latitude;
     private double longitude;
     private String complaintType;
 
-    public Complaint(String agency, String status, Date createdDate, String neighborhood, double latitude, double longitude, String complaintType) {
+    public Complaint() {
+        // empty for hazelcast
+    }
+
+    public Complaint(String agency, String status, LocalDateTime createdDate, String neighborhood, double latitude, double longitude, String complaintType) {
         this.agency = agency;
         this.status = status;
         this.createdDate = createdDate;
@@ -27,12 +32,12 @@ public abstract class Complaint implements DataSerializable {
     }
 
     public abstract String getId();
-    public abstract String getAddress();
-
+    public abstract String getStreet();
     public String getComplaintType() { return complaintType; }
+
     public String getAgency() { return agency; }
     public String getStatus() { return status; }
-    public Date getCreatedDate() { return createdDate; }
+    public LocalDateTime getCreatedDate() { return createdDate; }
     public String getNeighborhood() { return neighborhood; }
     public double getLatitude() { return latitude; }
     public double getLongitude() { return longitude; }
@@ -57,5 +62,10 @@ public abstract class Complaint implements DataSerializable {
         latitude = in.readDouble();
         longitude = in.readDouble();
         complaintType = in.readUTF();
+    }
+
+    @Override
+    public String toString() {
+        return "Complaint: %s %s %s".formatted(getId(), getComplaintType(), getStreet());
     }
 }
