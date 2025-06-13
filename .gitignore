@@ -65,3 +65,7 @@ nbdist/
 *.tmp
 *.swp
 *.swo
+
+# outputs
+
+query*.csv
