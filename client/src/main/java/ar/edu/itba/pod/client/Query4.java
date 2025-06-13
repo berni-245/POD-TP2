@@ -25,9 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -36,7 +34,6 @@ import java.util.concurrent.ExecutionException;
 public class Query4 {
 
     private static final Logger logger = LoggerFactory.getLogger(CsvComplaintParser.class);
-    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
     public static void main(String[] args) {
         logger.info("Query4 Client Starting ...");
@@ -46,7 +43,7 @@ public class Query4 {
         String city = System.getProperty("city");
         final String inPath = System.getProperty("inPath");
         final String outPath = System.getProperty("outPath");
-        final String neighborhood = System.getProperty("neighbourhood");
+        String neighborhood = System.getProperty("neighbourhood");
 
         if (addressesRawString == null || city == null || inPath == null || outPath == null) {
             System.err.println("Missing argument (Query1 Client)");
@@ -57,6 +54,8 @@ public class Query4 {
             System.err.println("Missing argument (Neighbourhood)");
             return;
         }
+
+        neighborhood = neighborhood.replace('_', ' ');
 
         city = city.toUpperCase();
 
@@ -129,7 +128,7 @@ public class Query4 {
             Path csvPath = Paths.get(outPath, "query4.csv");
 
             List<String> lines = new ArrayList<>();
-            lines.add("street;typePercentage"); // encabezado CSV
+            lines.add("street;typePercentage"); // header
 
             for (Map.Entry<String, String> elem : resultComplaintTypePercentage.entrySet()) {
                 String line = elem.getKey() + ";" + elem.getValue();

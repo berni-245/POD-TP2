@@ -8,16 +8,15 @@ import ar.edu.itba.pod.model.ComplaintNYC;
 import com.hazelcast.mapreduce.Context;
 import com.hazelcast.mapreduce.Mapper;
 
-import java.util.Calendar;
+import java.time.LocalDateTime;
 
 @SuppressWarnings("deprecation")
 public class AverageOpenComplaintsMapper implements Mapper<String, Complaint, AverageOpenComplaintKey, MonthCount> {
     @Override
     public void map(String key, Complaint complaint, Context<AverageOpenComplaintKey, MonthCount> context) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(complaint.getCreatedDate());
-        int year = cal.get(Calendar.YEAR);
-        int month = cal.get(Calendar.MONTH) + 1;
+        LocalDateTime time = complaint.getCreatedDate();
+        int year = time.getYear();
+        int month = time.getMonthValue();
         String type;
 
         if (complaint instanceof ComplaintChicago chi && complaint.getStatus().equals("Open")) {
