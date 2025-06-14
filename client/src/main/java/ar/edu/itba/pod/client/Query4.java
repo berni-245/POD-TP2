@@ -10,6 +10,8 @@ import ar.edu.itba.pod.reducer.CountComplaintTypeReducerFactory;
 import ar.edu.itba.pod.reducer.StreetComplaintTypeReducerFactory;
 import ar.edu.itba.pod.util.CsvComplaintParser;
 import ar.edu.itba.pod.util.AppInit;
+import ar.edu.itba.pod.util.TimeInterval;
+import ar.edu.itba.pod.util.WriteTimesCsv;
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.core.*;
 import com.hazelcast.mapreduce.Job;
@@ -22,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,42 +38,52 @@ public class Query4 {
     public static void main(String[] args) {
         logger.info("Query4 Client Starting ...");
 
-        // Initialize connection to hazelcast
-        AppInit initConfigurator = new AppInit();
-        HazelcastInstance hazelcastInstance = initConfigurator.getHazelcastInstance();
-        String groupCode = AppInit.groupCode;
-        String city = initConfigurator.getCity();
-
-        String neighborhood = System.getProperty("neighbourhood");
-
-        if (neighborhood == null) {
-            System.err.println("Missing argument (Neighbourhood)");
-            return;
-        }
-        neighborhood = neighborhood.replace('_', ' ');
-
-        // Initialize KeyValueSource
-        IMap<String, String> typesMap = hazelcastInstance.getMap(
-                groupCode + "-types-" + city
-        );
-        MultiMap<String, Complaint> complainsMap = hazelcastInstance.getMultiMap(
-                groupCode + "-neighborhood-complains-" + city
-        );
-        initConfigurator.parseCsv(elem -> complainsMap.put(elem.getNeighborhood(), elem), typesMap);
-        KeyValueSource<String, Complaint> complaintsVS = KeyValueSource.fromMultiMap(complainsMap);
-
-        // Job remove duplicates (first map-reduce)
-        JobTracker jobTrackerDup = hazelcastInstance.getJobTracker(
-                groupCode + "-remove-duplicates-" + city
-        );
-        Job<String, Complaint> removeDuplicates = jobTrackerDup.newJob(complaintsVS);
-        ICompletableFuture<Map<StreetComplaintTypePair, String>> futureDup = removeDuplicates
-                .keyPredicate(new FilterForNeighborhoodKeyPred(neighborhood))
-                .mapper(new StreetComplaintTypeMapper())
-                .reducer(new StreetComplaintTypeReducerFactory())
-                .submit();
         try {
+
+            // Initialize connection to hazelcast
+            AppInit initConfigurator = new AppInit();
+            HazelcastInstance hazelcastInstance = initConfigurator.getHazelcastInstance();
+            String groupCode = AppInit.groupCode;
+            String city = initConfigurator.getCity();
+
+            String neighborhood = System.getProperty("neighbourhood");
+
+            if (neighborhood == null) {
+                System.err.println("Missing argument (Neighbourhood)");
+                return;
+            }
+            neighborhood = neighborhood.replace('_', ' ');
+
+            // Initialize KeyValueSource
+            IMap<String, String> typesMap = hazelcastInstance.getMap(
+                    groupCode + "-types-" + city
+            );
+            MultiMap<String, Complaint> complainsMap = hazelcastInstance.getMultiMap(
+                    groupCode + "-neighborhood-complains-" + city
+            );
+            logger.info("Inicio de la lectura del archivo");
+            Instant parseStart = Instant.now();
+            initConfigurator.parseCsv(elem -> complainsMap.put(elem.getNeighborhood(), elem), typesMap);
+            Instant parseEnd = Instant.now();
+            logger.info("Fin de la lectura del archivo");
+
+            KeyValueSource<String, Complaint> complaintsVS = KeyValueSource.fromMultiMap(complainsMap);
+
+            // Job remove duplicates (first map-reduce)
+            JobTracker jobTrackerDup = hazelcastInstance.getJobTracker(
+                    groupCode + "-remove-duplicates-" + city
+            );
+            Job<String, Complaint> removeDuplicates = jobTrackerDup.newJob(complaintsVS);
+            logger.info("Inicio del trabajo 1 map/reduce");
+            Instant mapReduce1Start = Instant.now();
+            ICompletableFuture<Map<StreetComplaintTypePair, String>> futureDup = removeDuplicates
+                    .keyPredicate(new FilterForNeighborhoodKeyPred(neighborhood))
+                    .mapper(new StreetComplaintTypeMapper())
+                    .reducer(new StreetComplaintTypeReducerFactory())
+                    .submit();
             Map<StreetComplaintTypePair, String> resultDup = futureDup.get();
+            Instant mapReduce1End = Instant.now();
+            logger.info("Fin del trabajo 1 map/reduce");
 
             // Parse for next job
             MultiMap<String, String> complaintsTypesPerStreetMap = hazelcastInstance.getMultiMap(
@@ -88,11 +101,16 @@ public class Query4 {
             Job<String, String> countDifComplaintsTypes = jobTrackerDifTypes.newJob(
                     complaintsTypesPerStreetVS
             );
+
+            logger.info("Inicio del trabajo 2 map/reduce");
+            Instant mapReduce2Start = Instant.now();
             ICompletableFuture<Map<String, String>> futureCountDif = countDifComplaintsTypes
                     .mapper(new CountComplaintTypeMapper())
                     .reducer(new CountComplaintTypeReducerFactory())
                     .submit(new CountComplaintTypePercentageCollator(typesMap.size()));
             Map<String, String> resultComplaintTypePercentage = futureCountDif.get();
+            Instant mapReduce2End = Instant.now();
+            logger.info("Fin del trabajo 2 map/reduce");
 
             // Parse output to csv
             Path csvPath = Paths.get(initConfigurator.getOutDirectory(), "query4.csv");
@@ -106,6 +124,15 @@ public class Query4 {
             }
 
             Files.write(csvPath, lines);
+
+            // Parse times to csv
+            Path timesCsvPath = Paths.get(initConfigurator.getOutDirectory(), "times4.csv");
+            WriteTimesCsv.write(
+                    timesCsvPath,
+                    new TimeInterval(parseStart, parseEnd),
+                    new TimeInterval(mapReduce1Start, mapReduce1End),
+                    new TimeInterval(mapReduce2Start, mapReduce2End)
+            );
         }
         catch (InterruptedException | ExecutionException | IOException e) {
             System.err.println(e.getMessage());
