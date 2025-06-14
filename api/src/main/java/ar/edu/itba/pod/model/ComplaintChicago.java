@@ -53,7 +53,7 @@ public class ComplaintChicago extends Complaint {
 
     @Override
     public boolean isOpen() {
-        return this.getStatus().equals("Open");
+        return !this.getStatus().equals("Open");
     }
 
     @Override

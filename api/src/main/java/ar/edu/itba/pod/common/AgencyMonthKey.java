@@ -40,6 +40,11 @@ public class AgencyMonthKey implements DataSerializable {
     }
 
     @Override
+    public String toString() {
+        return "AgencyMonthKey {" + "agency='" + agency + '\'' + ", year=" + year + ", month=" + month + '}';
+    }
+
+    @Override
     public void writeData(ObjectDataOutput out) throws IOException {
         out.writeUTF(agency);
         out.writeInt(year);

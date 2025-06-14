@@ -7,6 +7,7 @@ import com.hazelcast.nio.serialization.DataSerializable;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Objects;
 
 public abstract class Complaint implements DataSerializable {
     private String agency;
@@ -63,6 +64,11 @@ public abstract class Complaint implements DataSerializable {
         latitude = in.readDouble();
         longitude = in.readDouble();
         complaintType = in.readUTF();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(agency, status, createdDate, neighborhood, latitude, longitude, complaintType);
     }
 
     @Override
