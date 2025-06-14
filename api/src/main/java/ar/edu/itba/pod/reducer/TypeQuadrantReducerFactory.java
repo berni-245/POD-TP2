@@ -7,6 +7,7 @@ import com.hazelcast.mapreduce.ReducerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressWarnings("deprecation")
 public class TypeQuadrantReducerFactory implements ReducerFactory<CoordinateNeighborhood,String,Map<String,Long>> {
     @Override
     public Reducer<String, Map<String, Long>> newReducer(CoordinateNeighborhood coordinateNeighborhood) {

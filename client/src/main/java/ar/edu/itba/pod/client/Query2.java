@@ -5,12 +5,8 @@ import ar.edu.itba.pod.common.CoordinateNeighborhood;
 import ar.edu.itba.pod.mapper.QuadrantTypeMapper;
 import ar.edu.itba.pod.model.Complaint;
 import ar.edu.itba.pod.reducer.TypeQuadrantReducerFactory;
-import ar.edu.itba.pod.util.City;
-import ar.edu.itba.pod.util.CsvComplaintParser;
+import ar.edu.itba.pod.util.*;
 import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.client.config.ClientNetworkConfig;
-import com.hazelcast.config.GroupConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.MultiMap;
@@ -19,75 +15,102 @@ import com.hazelcast.mapreduce.KeyValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 @SuppressWarnings("deprecation")
 public class Query2 {
-    private static final Logger logger = LoggerFactory.getLogger(CsvComplaintParser.class);
+    private static final Logger logger = LoggerFactory.getLogger(Query2.class);
 
     public static void main(String[] args) {
         logger.info("Query2 Client Starting ...");
 
-
-        final String addressesRawString = System.getProperty("addresses");
-        String city = System.getProperty("city");
-        final String inPath = System.getProperty("inPath");
-        final String outPath = System.getProperty("outPath");
-        final String qSize = System.getProperty("qSize");
-
-        if (addressesRawString == null || city == null || inPath == null || outPath == null || qSize == null) {
-            System.err.println("Missing argument (Query1 Client)");
-            return;
-        }
-
-        float quadrantSize = Float.parseFloat(qSize);
-
-        city = city.toUpperCase();
-
         try {
-            // Group Config
-            String groupCode = "g3";
-            GroupConfig groupConfig = new GroupConfig().setName(groupCode).setPassword(groupCode + "-pass");
 
-            // Client Network Config
-            ClientNetworkConfig clientNetworkConfig = new ClientNetworkConfig();
-            for (String address : addressesRawString.split(";"))
-                clientNetworkConfig.addAddress(address);
+            // Initialize arguments and connection to hazelcast
+            AppInit initConfigurator = new AppInit();
+            HazelcastInstance hazelcastInstance = initConfigurator.getHazelcastInstance();
+            String groupCode = AppInit.groupCode;
+            String city = initConfigurator.getCity();
 
-            // Client Config
-            ClientConfig clientConfig = new ClientConfig().setGroupConfig(groupConfig).setNetworkConfig(clientNetworkConfig);
+            final String qSize = System.getProperty("q");
 
-            // Node Client
-            HazelcastInstance hazelcastInstance = HazelcastClient.newHazelcastClient(clientConfig);
-
-            String complaintsPath = inPath + "/serviceRequests" + city + ".csv";
-            String typesPath = inPath + "/serviceTypes" + city + ".csv";
-            City cityFormat = CsvComplaintParser.getCityFormat(complaintsPath);
-
-            String complaintsMapName = groupCode + "-complaints-" + city;
-            String typesMapName = groupCode + "-types-" + city;
-
-            IMap<String, String> typesMap = hazelcastInstance.getMap(typesMapName);
-            IMap<String, Complaint> complaintsMap = hazelcastInstance.getMap(complaintsMapName);
-            CsvComplaintParser.parseCsv(complaintsPath, typesPath, cityFormat, elem -> complaintsMap.put(elem.getId(), elem), typesMap);
-
-            MultiMap<CoordinateNeighborhood,Complaint> complaintCount = hazelcastInstance.getMultiMap(complaintsMapName);
-
-            for(Complaint complaint : complaintsMap.values()) {
-                CoordinateNeighborhood cn = new CoordinateNeighborhood(complaint.getNeighborhood(), (int) (complaint.getLongitude()/quadrantSize), (int) (complaint.getLatitude()/quadrantSize));
-                complaintCount.put(cn, complaint);
+            if (qSize == null) {
+                System.err.println("Missing argument q (Query1 Client)");
+                return;
             }
+            double quadrantSize = Double.parseDouble(qSize);
 
-            KeyValueSource<CoordinateNeighborhood,Complaint> source = KeyValueSource.fromMultiMap(complaintCount);
-            JobTracker jt = hazelcastInstance.getJobTracker("complaintTypeTracker");
-            Map<CoordinateNeighborhood,String> mostCommonByQuadrant = jt.newJob(source).mapper(new QuadrantTypeMapper()).reducer(new TypeQuadrantReducerFactory()).submit(new CommonTypeCollator()).get();
-
-            mostCommonByQuadrant.forEach((quadrant, complaintType) ->
-                    System.out.printf("%s - %s%n",quadrant,complaintType)
+            // Initialize KeyValueSource
+            IMap<String, String> typesMap = hazelcastInstance.getMap(
+                    groupCode + "-types-" + city
+            );
+            MultiMap<CoordinateNeighborhood,Complaint> complaintCount = hazelcastInstance.getMultiMap(
+                    groupCode + "-complaints-count-" + city
             );
 
-        } catch (ExecutionException | InterruptedException e) {
+            logger.info("Inicio de la lectura del archivo");
+            Instant parseStart = Instant.now();
+            initConfigurator.parseCsv(
+                    elem -> complaintCount.put(
+                            new CoordinateNeighborhood(
+                                    elem.getNeighborhood(), elem.getLatitude(), elem.getLongitude(), quadrantSize
+                            ),
+                            elem
+                    ),
+                    typesMap
+            );
+            Instant parseEnd = Instant.now();
+            logger.info("Fin de la lectura del archivo");
+
+            KeyValueSource<CoordinateNeighborhood,Complaint> source = KeyValueSource.fromMultiMap(complaintCount);
+
+            // Job Tracker
+            JobTracker jt = hazelcastInstance.getJobTracker(
+                    groupCode + "complaint-type-tracker" + city
+            );
+            logger.info("Inicio del trabajo map/reduce");
+            Instant mapReduceStart = Instant.now();
+            Map<CoordinateNeighborhood,String> mostCommonByQuadrant = jt.newJob(source)
+                    .mapper(new QuadrantTypeMapper())
+                    .reducer(new TypeQuadrantReducerFactory())
+                    .submit(new CommonTypeCollator())
+                    .get();
+            Instant mapReduceEnd = Instant.now();
+            logger.info("Fin del trabajo map/reduce");
+
+            // Parse output to csv
+            Path csvPath = Paths.get(initConfigurator.getOutDirectory(), "query2.csv");
+
+            List<String> lines = new ArrayList<>();
+            lines.add("neighbourhood;quadLat;quadLon;topType"); // header
+
+            for (Map.Entry<CoordinateNeighborhood, String> elem : mostCommonByQuadrant.entrySet()) {
+                CoordinateNeighborhood key = elem.getKey();
+                String line = "%s;%d;%d;%s".formatted(
+                        key.getNeighborhood(), key.getXCoordinate(), key.getYCoordinate(), elem.getValue()
+                );
+                lines.add(line);
+            }
+
+            Files.write(csvPath, lines);
+
+            // Parse times to csv
+            Path timesCsvPath = Paths.get(initConfigurator.getOutDirectory(), "times2.csv");
+            WriteTimesCsv.write(
+                    timesCsvPath,
+                    new TimeInterval(parseStart, parseEnd),
+                    new TimeInterval(mapReduceStart, mapReduceEnd)
+            );
+
+        } catch (ExecutionException | InterruptedException | IOException e) {
             throw new RuntimeException(e);
         } finally {
             HazelcastClient.shutdownAll();
@@ -95,7 +118,3 @@ public class Query2 {
     }
 
 }
-
-
-//MultiMap<Neighboorhood,Map.Entry<Type,Count>>
-//Map<Neightborhood,Type>

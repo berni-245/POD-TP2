@@ -12,10 +12,14 @@ public class CoordinateNeighborhood implements DataSerializable {
     private int xCoordinate;
     private int yCoordinate;
 
-    public CoordinateNeighborhood(String neighborhood, int xCoordinate, int yCoordinate) {
+    public CoordinateNeighborhood() {
+        // Empty for hazelcast
+    }
+
+    public CoordinateNeighborhood(String neighborhood, double latitude, double longitude, double quadrantSize) {
         this.neighborhood = neighborhood;
-        this.xCoordinate = xCoordinate;
-        this.yCoordinate = yCoordinate;
+        this.xCoordinate = (int) (latitude/quadrantSize);
+        this.yCoordinate = (int) (longitude/quadrantSize);
     }
 
 
@@ -41,6 +45,14 @@ public class CoordinateNeighborhood implements DataSerializable {
     @Override
     public int hashCode(){
         return Objects.hash(neighborhood, xCoordinate, yCoordinate);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof CoordinateNeighborhood coordinateNeighborhood &&
+                neighborhood.equals(coordinateNeighborhood.neighborhood) &&
+                xCoordinate == coordinateNeighborhood.xCoordinate &&
+                yCoordinate == coordinateNeighborhood.yCoordinate;
     }
 
     public String getNeighborhood() {
