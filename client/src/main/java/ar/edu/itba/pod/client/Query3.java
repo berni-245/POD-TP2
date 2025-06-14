@@ -77,8 +77,6 @@ public class Query3 {
             Instant mapReduceEnd = Instant.now();
             logger.info("Fin del trabajo map/reduce");
 
-            result.forEach(System.out::println);
-
             // Parse output to csv
             Path csvPath = Paths.get(initConfigurator.getOutDirectory(), "query3.csv");
 

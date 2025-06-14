@@ -7,7 +7,7 @@ import com.hazelcast.nio.serialization.DataSerializable;
 import java.io.IOException;
 import java.util.Objects;
 
-public class CoordinateNeighborhood implements DataSerializable {
+public class CoordinateNeighborhood implements DataSerializable, Comparable<CoordinateNeighborhood> {
     private String neighborhood;
     private int xCoordinate;
     private int yCoordinate;
@@ -65,5 +65,17 @@ public class CoordinateNeighborhood implements DataSerializable {
 
     public int getYCoordinate() {
         return yCoordinate;
+    }
+
+    @Override
+    public int compareTo(CoordinateNeighborhood o) {
+        int cmp = neighborhood.compareTo(o.neighborhood);
+        if (cmp == 0) {
+            cmp = Integer.compare(xCoordinate, o.xCoordinate);
+            if (cmp == 0) {
+                cmp = Integer.compare(yCoordinate, o.yCoordinate);
+            }
+        }
+        return cmp;
     }
 }
