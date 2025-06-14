@@ -1,10 +1,10 @@
 package ar.edu.itba.pod.client;
 
+import ar.edu.itba.pod.collator.CommonTypeCollator;
 import ar.edu.itba.pod.common.CoordinateNeighborhood;
 import ar.edu.itba.pod.mapper.QuadrantTypeMapper;
 import ar.edu.itba.pod.model.Complaint;
-import ar.edu.itba.pod.model.ComplaintChicago;
-import ar.edu.itba.pod.model.ComplaintNYC;
+import ar.edu.itba.pod.reducer.TypeQuadrantReducerFactory;
 import ar.edu.itba.pod.util.City;
 import ar.edu.itba.pod.util.CsvComplaintParser;
 import com.hazelcast.client.HazelcastClient;
@@ -12,7 +12,6 @@ import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.ClientNetworkConfig;
 import com.hazelcast.config.GroupConfig;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IList;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.MultiMap;
 import com.hazelcast.mapreduce.JobTracker;
@@ -20,20 +19,12 @@ import com.hazelcast.mapreduce.KeyValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Stream;
+import java.util.concurrent.ExecutionException;
 
 @SuppressWarnings("deprecation")
 public class Query2 {
     private static final Logger logger = LoggerFactory.getLogger(CsvComplaintParser.class);
-    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
     public static void main(String[] args) {
         logger.info("Query2 Client Starting ...");
@@ -50,7 +41,7 @@ public class Query2 {
             return;
         }
 
-        Float quadrantSize = Float.parseFloat(qSize);
+        float quadrantSize = Float.parseFloat(qSize);
 
         city = city.toUpperCase();
 
@@ -69,9 +60,6 @@ public class Query2 {
 
             // Node Client
             HazelcastInstance hazelcastInstance = HazelcastClient.newHazelcastClient(clientConfig);
-
-            // Job Tracker
-            JobTracker jobTracker = hazelcastInstance.getJobTracker("totalClaimsPerAgencyAndClaimType");
 
             String complaintsPath = inPath + "/serviceRequests" + city + ".csv";
             String typesPath = inPath + "/serviceTypes" + city + ".csv";
@@ -93,8 +81,14 @@ public class Query2 {
 
             KeyValueSource<CoordinateNeighborhood,Complaint> source = KeyValueSource.fromMultiMap(complaintCount);
             JobTracker jt = hazelcastInstance.getJobTracker("complaintTypeTracker");
-            jt.newJob(source).mapper(new QuadrantTypeMapper());
+            Map<CoordinateNeighborhood,String> mostCommonByQuadrant = jt.newJob(source).mapper(new QuadrantTypeMapper()).reducer(new TypeQuadrantReducerFactory()).submit(new CommonTypeCollator()).get();
 
+            mostCommonByQuadrant.forEach((quadrant, complaintType) ->
+                    System.out.printf("%s - %s%n",quadrant,complaintType)
+            );
+
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         } finally {
             HazelcastClient.shutdownAll();
         }

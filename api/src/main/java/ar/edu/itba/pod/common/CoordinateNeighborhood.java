@@ -34,6 +34,11 @@ public class CoordinateNeighborhood implements DataSerializable {
     }
 
     @Override
+    public String toString() {
+        return "%s %dº %dº".formatted(neighborhood, xCoordinate, yCoordinate);
+    }
+
+    @Override
     public int hashCode(){
         return Objects.hash(neighborhood, xCoordinate, yCoordinate);
     }
