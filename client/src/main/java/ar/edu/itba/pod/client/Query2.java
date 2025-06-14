@@ -5,6 +5,7 @@ import ar.edu.itba.pod.common.CoordinateNeighborhood;
 import ar.edu.itba.pod.mapper.QuadrantTypeMapper;
 import ar.edu.itba.pod.model.Complaint;
 import ar.edu.itba.pod.reducer.TypeQuadrantReducerFactory;
+import ar.edu.itba.pod.util.AppInit;
 import ar.edu.itba.pod.util.City;
 import ar.edu.itba.pod.util.CsvComplaintParser;
 import com.hazelcast.client.HazelcastClient;
@@ -24,67 +25,54 @@ import java.util.concurrent.ExecutionException;
 
 @SuppressWarnings("deprecation")
 public class Query2 {
-    private static final Logger logger = LoggerFactory.getLogger(CsvComplaintParser.class);
+    private static final Logger logger = LoggerFactory.getLogger(Query2.class);
 
     public static void main(String[] args) {
         logger.info("Query2 Client Starting ...");
 
-
-        final String addressesRawString = System.getProperty("addresses");
-        String city = System.getProperty("city");
-        final String inPath = System.getProperty("inPath");
-        final String outPath = System.getProperty("outPath");
-        final String qSize = System.getProperty("qSize");
-
-        if (addressesRawString == null || city == null || inPath == null || outPath == null || qSize == null) {
-            System.err.println("Missing argument (Query1 Client)");
-            return;
-        }
-
-        float quadrantSize = Float.parseFloat(qSize);
-
-        city = city.toUpperCase();
-
         try {
-            // Group Config
-            String groupCode = "g3";
-            GroupConfig groupConfig = new GroupConfig().setName(groupCode).setPassword(groupCode + "-pass");
 
-            // Client Network Config
-            ClientNetworkConfig clientNetworkConfig = new ClientNetworkConfig();
-            for (String address : addressesRawString.split(";"))
-                clientNetworkConfig.addAddress(address);
+            // Initialize arguments and connection to hazelcast
+            AppInit initConfigurator = new AppInit();
+            HazelcastInstance hazelcastInstance = initConfigurator.getHazelcastInstance();
+            String groupCode = AppInit.groupCode;
+            String city = initConfigurator.getCity();
 
-            // Client Config
-            ClientConfig clientConfig = new ClientConfig().setGroupConfig(groupConfig).setNetworkConfig(clientNetworkConfig);
+            final String qSize = System.getProperty("q");
 
-            // Node Client
-            HazelcastInstance hazelcastInstance = HazelcastClient.newHazelcastClient(clientConfig);
-
-            String complaintsPath = inPath + "/serviceRequests" + city + ".csv";
-            String typesPath = inPath + "/serviceTypes" + city + ".csv";
-            City cityFormat = CsvComplaintParser.getCityFormat(complaintsPath);
-
-            String complaintsMapName = groupCode + "-complaints-" + city;
-            String typesMapName = groupCode + "-types-" + city;
-
-            IMap<String, String> typesMap = hazelcastInstance.getMap(typesMapName);
-            IMap<String, Complaint> complaintsMap = hazelcastInstance.getMap(complaintsMapName);
-            CsvComplaintParser.parseCsv(complaintsPath, typesPath, cityFormat, elem -> complaintsMap.put(elem.getId(), elem), typesMap);
-
-            MultiMap<CoordinateNeighborhood,Complaint> complaintCount = hazelcastInstance.getMultiMap(complaintsMapName);
-
-            for(Complaint complaint : complaintsMap.values()) {
-                CoordinateNeighborhood cn = new CoordinateNeighborhood(complaint.getNeighborhood(), (int) (complaint.getLongitude()/quadrantSize), (int) (complaint.getLatitude()/quadrantSize));
-                complaintCount.put(cn, complaint);
+            if (qSize == null) {
+                System.err.println("Missing argument qSize (Query1 Client)");
+                return;
             }
+            double quadrantSize = Double.parseDouble(qSize);
+
+            // Initialize KeyValueSource
+            IMap<String, String> typesMap = hazelcastInstance.getMap(
+                    groupCode + "-types-" + city
+            );
+            MultiMap<CoordinateNeighborhood,Complaint> complaintCount = hazelcastInstance.getMultiMap(
+                    groupCode + "-complaints-count-" + city
+            );
+
+            initConfigurator.parseCsv(
+                    elem -> complaintCount.put(
+                            new CoordinateNeighborhood(
+                                    elem.getNeighborhood(), elem.getLatitude(), elem.getLongitude(), quadrantSize
+                            ),
+                            elem
+                    ),
+                    typesMap
+            );
 
             KeyValueSource<CoordinateNeighborhood,Complaint> source = KeyValueSource.fromMultiMap(complaintCount);
-            JobTracker jt = hazelcastInstance.getJobTracker("complaintTypeTracker");
+            JobTracker jt = hazelcastInstance.getJobTracker(
+                    groupCode + "complaint-type-tracker" + city
+            );
             Map<CoordinateNeighborhood,String> mostCommonByQuadrant = jt.newJob(source)
                     .mapper(new QuadrantTypeMapper())
                     .reducer(new TypeQuadrantReducerFactory())
-                    .submit(new CommonTypeCollator()).get();
+                    .submit(new CommonTypeCollator())
+                    .get();
 
             mostCommonByQuadrant.forEach((quadrant, complaintType) ->
                     System.out.printf("%s - %s%n",quadrant,complaintType)
