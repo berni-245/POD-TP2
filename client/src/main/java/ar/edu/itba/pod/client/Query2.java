@@ -81,7 +81,10 @@ public class Query2 {
 
             KeyValueSource<CoordinateNeighborhood,Complaint> source = KeyValueSource.fromMultiMap(complaintCount);
             JobTracker jt = hazelcastInstance.getJobTracker("complaintTypeTracker");
-            Map<CoordinateNeighborhood,String> mostCommonByQuadrant = jt.newJob(source).mapper(new QuadrantTypeMapper()).reducer(new TypeQuadrantReducerFactory()).submit(new CommonTypeCollator()).get();
+            Map<CoordinateNeighborhood,String> mostCommonByQuadrant = jt.newJob(source)
+                    .mapper(new QuadrantTypeMapper())
+                    .reducer(new TypeQuadrantReducerFactory())
+                    .submit(new CommonTypeCollator()).get();
 
             mostCommonByQuadrant.forEach((quadrant, complaintType) ->
                     System.out.printf("%s - %s%n",quadrant,complaintType)

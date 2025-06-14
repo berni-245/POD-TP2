@@ -8,12 +8,9 @@ import ar.edu.itba.pod.mapper.StreetComplaintTypeMapper;
 import ar.edu.itba.pod.model.Complaint;
 import ar.edu.itba.pod.reducer.CountComplaintTypeReducerFactory;
 import ar.edu.itba.pod.reducer.StreetComplaintTypeReducerFactory;
-import ar.edu.itba.pod.util.City;
 import ar.edu.itba.pod.util.CsvComplaintParser;
+import ar.edu.itba.pod.util.AppInit;
 import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.client.config.ClientNetworkConfig;
-import com.hazelcast.config.GroupConfig;
 import com.hazelcast.core.*;
 import com.hazelcast.mapreduce.Job;
 import com.hazelcast.mapreduce.JobTracker;
@@ -38,70 +35,41 @@ public class Query4 {
     public static void main(String[] args) {
         logger.info("Query4 Client Starting ...");
 
+        // Initialize connection to hazelcast
+        AppInit initConfigurator = new AppInit();
+        HazelcastInstance hazelcastInstance = initConfigurator.getHazelcastInstance();
+        String groupCode = AppInit.groupCode;
+        String city = initConfigurator.getCity();
 
-        String addressesRawString = System.getProperty("addresses");
-        String city = System.getProperty("city");
-        final String inPath = System.getProperty("inPath");
-        final String outPath = System.getProperty("outPath");
         String neighborhood = System.getProperty("neighbourhood");
-
-        if (addressesRawString == null || city == null || inPath == null || outPath == null) {
-            System.err.println("Missing argument (Query1 Client)");
-            return;
-        }
 
         if (neighborhood == null) {
             System.err.println("Missing argument (Neighbourhood)");
             return;
         }
-
         neighborhood = neighborhood.replace('_', ' ');
 
-        city = city.toUpperCase();
+        // Initialize KeyValueSource
+        IMap<String, String> typesMap = hazelcastInstance.getMap(
+                groupCode + "-types-" + city
+        );
+        MultiMap<String, Complaint> complainsMap = hazelcastInstance.getMultiMap(
+                groupCode + "-neighborhood-complains-" + city
+        );
+        initConfigurator.parseCsv(elem -> complainsMap.put(elem.getNeighborhood(), elem), typesMap);
+        KeyValueSource<String, Complaint> complaintsVS = KeyValueSource.fromMultiMap(complainsMap);
 
+        // Job remove duplicates (first map-reduce)
+        JobTracker jobTrackerDup = hazelcastInstance.getJobTracker(
+                groupCode + "-remove-duplicates-" + city
+        );
+        Job<String, Complaint> removeDuplicates = jobTrackerDup.newJob(complaintsVS);
+        ICompletableFuture<Map<StreetComplaintTypePair, String>> futureDup = removeDuplicates
+                .keyPredicate(new FilterForNeighborhoodKeyPred(neighborhood))
+                .mapper(new StreetComplaintTypeMapper())
+                .reducer(new StreetComplaintTypeReducerFactory())
+                .submit();
         try {
-            // Group Config
-            String groupCode = "g3";
-            GroupConfig groupConfig = new GroupConfig().setName(groupCode).setPassword(groupCode + "-pass");
-
-            // Client Network Config
-            ClientNetworkConfig clientNetworkConfig = new ClientNetworkConfig();
-            addressesRawString = addressesRawString.replace("'", "");
-            for (String address : addressesRawString.split(";"))
-                clientNetworkConfig.addAddress(address);
-
-            // Client Config
-            ClientConfig clientConfig = new ClientConfig().setGroupConfig(groupConfig).setNetworkConfig(clientNetworkConfig);
-
-            // Node Client
-            HazelcastInstance hazelcastInstance = HazelcastClient.newHazelcastClient(clientConfig);
-
-            // Path files
-            String complainsPath = inPath + "/serviceRequests" + city + ".csv";
-            String typesPath = inPath + "/serviceTypes" + city + ".csv";
-
-            City cityFormat = CsvComplaintParser.getCityFormat(complainsPath);
-
-            // Initialize KeyValueSource
-            IMap<String, String> typesMap = hazelcastInstance.getMap(
-                    groupCode + "-types-" + city
-            );
-            MultiMap<String, Complaint> complainsMap = hazelcastInstance.getMultiMap(
-                    groupCode + "-neighborhood-complains-" + city
-            );
-            CsvComplaintParser.parseCsv(complainsPath, typesPath, cityFormat, elem -> complainsMap.put(elem.getNeighborhood(), elem), typesMap);
-            KeyValueSource<String, Complaint> complaintsVS = KeyValueSource.fromMultiMap(complainsMap);
-
-            // Job remove duplicates (first map-reduce)
-            JobTracker jobTrackerDup = hazelcastInstance.getJobTracker(
-                    groupCode + "-remove-duplicates-" + city
-            );
-            Job<String, Complaint> removeDuplicates = jobTrackerDup.newJob(complaintsVS);
-            ICompletableFuture<Map<StreetComplaintTypePair, String>> futureDup = removeDuplicates
-                    .keyPredicate(new FilterForNeighborhoodKeyPred(neighborhood))
-                    .mapper(new StreetComplaintTypeMapper())
-                    .reducer(new StreetComplaintTypeReducerFactory())
-                    .submit();
             Map<StreetComplaintTypePair, String> resultDup = futureDup.get();
 
             // Parse for next job
@@ -127,7 +95,7 @@ public class Query4 {
             Map<String, String> resultComplaintTypePercentage = futureCountDif.get();
 
             // Parse output to csv
-            Path csvPath = Paths.get(outPath, "query4.csv");
+            Path csvPath = Paths.get(initConfigurator.getOutDirectory(), "query4.csv");
 
             List<String> lines = new ArrayList<>();
             lines.add("street;typePercentage"); // header
@@ -137,14 +105,10 @@ public class Query4 {
                 lines.add(line);
             }
 
-            try {
-                Files.write(csvPath, lines);
-            } catch (IOException e) {
-                System.out.println("Error writing the output file");
-            }
+            Files.write(csvPath, lines);
         }
-        catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+        catch (InterruptedException | ExecutionException | IOException e) {
+            System.err.println(e.getMessage());
         }
         finally {
             HazelcastClient.shutdownAll();
