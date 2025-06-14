@@ -3,7 +3,6 @@ package ar.edu.itba.pod.collator;
 import ar.edu.itba.pod.common.CoordinateNeighborhood;
 import com.hazelcast.mapreduce.Collator;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,10 +16,10 @@ public class CommonTypeCollator implements Collator<Map.Entry<CoordinateNeighbor
             CoordinateNeighborhood quadrant = entry.getKey();
             Map<String, Long> counts = entry.getValue();
             String mostCommon = counts.entrySet().stream()
-                    .max(
-                            Comparator.<Map.Entry<String,Long>>comparingLong(Map.Entry::getValue).reversed()
-                                    .thenComparing(Map.Entry::getKey)
-                    )
+                    .max((e1, e2) -> {
+                        int cmp = e1.getValue().compareTo(e2.getValue());
+                        return (cmp != 0) ? cmp : e2.getKey().compareTo(e1.getKey()); // with type name alphabetically as tie-breaker condition
+                    })
                     .map(Map.Entry::getKey)
                     .orElse("");
             result.put(quadrant, mostCommon);
