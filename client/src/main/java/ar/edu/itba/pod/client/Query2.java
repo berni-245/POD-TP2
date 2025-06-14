@@ -72,6 +72,7 @@ public class Query2 {
 
             KeyValueSource<CoordinateNeighborhood,Complaint> source = KeyValueSource.fromMultiMap(complaintCount);
 
+            // Job Tracker
             JobTracker jt = hazelcastInstance.getJobTracker(
                     groupCode + "complaint-type-tracker" + city
             );
@@ -117,7 +118,3 @@ public class Query2 {
     }
 
 }
-
-
-//MultiMap<Neighboorhood,Map.Entry<Type,Count>>
-//Map<Neightborhood,Type>
