@@ -5,13 +5,8 @@ import ar.edu.itba.pod.common.CoordinateNeighborhood;
 import ar.edu.itba.pod.mapper.QuadrantTypeMapper;
 import ar.edu.itba.pod.model.Complaint;
 import ar.edu.itba.pod.reducer.TypeQuadrantReducerFactory;
-import ar.edu.itba.pod.util.AppInit;
-import ar.edu.itba.pod.util.City;
-import ar.edu.itba.pod.util.CsvComplaintParser;
+import ar.edu.itba.pod.util.*;
 import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.client.config.ClientNetworkConfig;
-import com.hazelcast.config.GroupConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.MultiMap;
@@ -20,6 +15,13 @@ import com.hazelcast.mapreduce.KeyValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -41,7 +43,7 @@ public class Query2 {
             final String qSize = System.getProperty("q");
 
             if (qSize == null) {
-                System.err.println("Missing argument qSize (Query1 Client)");
+                System.err.println("Missing argument q (Query1 Client)");
                 return;
             }
             double quadrantSize = Double.parseDouble(qSize);
@@ -54,6 +56,8 @@ public class Query2 {
                     groupCode + "-complaints-count-" + city
             );
 
+            logger.info("Inicio de la lectura del archivo");
+            Instant parseStart = Instant.now();
             initConfigurator.parseCsv(
                     elem -> complaintCount.put(
                             new CoordinateNeighborhood(
@@ -63,22 +67,49 @@ public class Query2 {
                     ),
                     typesMap
             );
+            Instant parseEnd = Instant.now();
+            logger.info("Fin de la lectura del archivo");
 
             KeyValueSource<CoordinateNeighborhood,Complaint> source = KeyValueSource.fromMultiMap(complaintCount);
+
             JobTracker jt = hazelcastInstance.getJobTracker(
                     groupCode + "complaint-type-tracker" + city
             );
+            logger.info("Inicio del trabajo map/reduce");
+            Instant mapReduceStart = Instant.now();
             Map<CoordinateNeighborhood,String> mostCommonByQuadrant = jt.newJob(source)
                     .mapper(new QuadrantTypeMapper())
                     .reducer(new TypeQuadrantReducerFactory())
                     .submit(new CommonTypeCollator())
                     .get();
+            Instant mapReduceEnd = Instant.now();
+            logger.info("Fin del trabajo map/reduce");
 
-            mostCommonByQuadrant.forEach((quadrant, complaintType) ->
-                    System.out.printf("%s - %s%n",quadrant,complaintType)
+            // Parse output to csv
+            Path csvPath = Paths.get(initConfigurator.getOutDirectory(), "query2.csv");
+
+            List<String> lines = new ArrayList<>();
+            lines.add("neighbourhood;quadLat;quadLon;topType"); // header
+
+            for (Map.Entry<CoordinateNeighborhood, String> elem : mostCommonByQuadrant.entrySet()) {
+                CoordinateNeighborhood key = elem.getKey();
+                String line = "%s;%d;%d;%s".formatted(
+                        key.getNeighborhood(), key.getXCoordinate(), key.getYCoordinate(), elem.getValue()
+                );
+                lines.add(line);
+            }
+
+            Files.write(csvPath, lines);
+
+            // Parse times to csv
+            Path timesCsvPath = Paths.get(initConfigurator.getOutDirectory(), "times2.csv");
+            WriteTimesCsv.write(
+                    timesCsvPath,
+                    new TimeInterval(parseStart, parseEnd),
+                    new TimeInterval(mapReduceStart, mapReduceEnd)
             );
 
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException | InterruptedException | IOException e) {
             throw new RuntimeException(e);
         } finally {
             HazelcastClient.shutdownAll();

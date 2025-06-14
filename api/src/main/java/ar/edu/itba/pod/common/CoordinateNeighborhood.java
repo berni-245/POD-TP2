@@ -47,6 +47,14 @@ public class CoordinateNeighborhood implements DataSerializable {
         return Objects.hash(neighborhood, xCoordinate, yCoordinate);
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof CoordinateNeighborhood coordinateNeighborhood &&
+                neighborhood.equals(coordinateNeighborhood.neighborhood) &&
+                xCoordinate == coordinateNeighborhood.xCoordinate &&
+                yCoordinate == coordinateNeighborhood.yCoordinate;
+    }
+
     public String getNeighborhood() {
         return neighborhood;
     }
