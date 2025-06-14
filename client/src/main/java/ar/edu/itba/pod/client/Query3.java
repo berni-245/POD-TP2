@@ -57,7 +57,7 @@ public class Query3 {
             );
             logger.info("Inicio de la lectura del archivo");
             Instant parseStart = Instant.now();
-            initConfigurator.parseCsv(elem -> complainsMap.put(elem.getNeighborhood(), elem), typesMap);
+            initConfigurator.parseCsv(elem -> complainsMap.put(elem.getId(), elem), typesMap);
             Instant parseEnd = Instant.now();
             logger.info("Fin de la lectura del archivo");
 

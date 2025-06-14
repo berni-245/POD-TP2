@@ -20,7 +20,6 @@ public class ComplaintChicago extends Complaint {
         super();
         // empty for hazelcast
     }
-
     public ComplaintChicago(String srNumber, String srShortCode, String complaintType, String agency, String status, LocalDateTime createdDate,
                             int streetNumber, String streetDirection, String streetName, String streetType,
                             String communityArea, double latitude, double longitude) {
@@ -53,7 +52,7 @@ public class ComplaintChicago extends Complaint {
 
     @Override
     public boolean isOpen() {
-        return !this.getStatus().equals("Open");
+        return this.getStatus().equals("Open");
     }
 
     @Override

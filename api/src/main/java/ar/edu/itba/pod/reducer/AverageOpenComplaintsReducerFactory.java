@@ -9,7 +9,7 @@ public class AverageOpenComplaintsReducerFactory implements ReducerFactory<Agenc
     @Override
     public Reducer<Integer, Integer> newReducer(AgencyMonthKey key) {
         return new Reducer<>() {
-            private int count = 0;
+            int count = 0;
 
             @Override
             public void reduce(Integer value) {
