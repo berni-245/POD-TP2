@@ -58,7 +58,10 @@ public class CsvComplaintParser {
                             throw new RuntimeException("Error parsing: " + complaintsPath, e);
                         }
                     })
-                    .forEach(addToKeyValueSource);
+                    .forEach(elem -> {
+                        if (types.containsValue(elem.getComplaintType())) // only add it if it belongs to csv types
+                            addToKeyValueSource.accept(elem);
+                    });
 
         } catch (IOException e) {
             throw new RuntimeException("Error reading file: " + complaintsPath, e);
