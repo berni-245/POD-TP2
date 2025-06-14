@@ -16,13 +16,10 @@ public class CommonTypeCollator implements Collator<Map.Entry<CoordinateNeighbor
         for(Map.Entry<CoordinateNeighborhood,Map<String, Long>> entry : iterable) {
             CoordinateNeighborhood quadrant = entry.getKey();
             Map<String, Long> counts = entry.getValue();
-
-            // looks for the complaint type with the highest appearances (unties with alphabetic order)
             String mostCommon = counts.entrySet().stream()
                     .max(
-                            Comparator.comparing(Map.Entry<String, Long>::getValue)
+                            Comparator.<Map.Entry<String,Long>>comparingLong(Map.Entry::getValue).reversed()
                                     .thenComparing(Map.Entry::getKey)
-
                     )
                     .map(Map.Entry::getKey)
                     .orElse("");
