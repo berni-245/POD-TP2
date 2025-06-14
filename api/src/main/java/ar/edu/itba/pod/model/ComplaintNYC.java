@@ -36,6 +36,11 @@ public class ComplaintNYC extends Complaint {
     }
 
     @Override
+    public boolean isOpen() {
+        return !this.getStatus().equals("Closed");
+    }
+
+    @Override
     public void writeData(ObjectDataOutput out) throws IOException {
         super.writeData(out);
         out.writeLong(uniqueKey);

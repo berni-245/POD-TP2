@@ -52,6 +52,11 @@ public class ComplaintChicago extends Complaint {
     public String getCommunityArea() { return communityArea; }
 
     @Override
+    public boolean isOpen() {
+        return this.getStatus().equals("Open");
+    }
+
+    @Override
     public void writeData(ObjectDataOutput out) throws IOException {
         super.writeData(out);
         out.writeUTF(srNumber);

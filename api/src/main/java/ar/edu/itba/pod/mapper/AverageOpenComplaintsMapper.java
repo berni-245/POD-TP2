@@ -1,32 +1,23 @@
 package ar.edu.itba.pod.mapper;
 
-import ar.edu.itba.pod.common.AverageOpenComplaintKey;
-import ar.edu.itba.pod.common.MonthCount;
+import ar.edu.itba.pod.common.AgencyMonthKey;
 import ar.edu.itba.pod.model.Complaint;
-import ar.edu.itba.pod.model.ComplaintChicago;
-import ar.edu.itba.pod.model.ComplaintNYC;
 import com.hazelcast.mapreduce.Context;
 import com.hazelcast.mapreduce.Mapper;
 
 import java.time.LocalDateTime;
 
 @SuppressWarnings("deprecation")
-public class AverageOpenComplaintsMapper implements Mapper<String, Complaint, AverageOpenComplaintKey, MonthCount> {
+public class AverageOpenComplaintsMapper implements Mapper<String, Complaint, AgencyMonthKey, Integer> {
     @Override
-    public void map(String key, Complaint complaint, Context<AverageOpenComplaintKey, MonthCount> context) {
+    public void map(String key, Complaint complaint, Context<AgencyMonthKey, Integer> context) {
         LocalDateTime time = complaint.getCreatedDate();
         int year = time.getYear();
         int month = time.getMonthValue();
-        String type;
+        String agency = complaint.getAgency();
 
-        if (complaint instanceof ComplaintChicago chi && complaint.getStatus().equals("Open")) {
-            type = chi.getSrShortCode();
-        } else if (complaint instanceof ComplaintNYC nyc && !complaint.getStatus().equals("Closed")) {
-            type = nyc.getComplaintType();
-        } else {
-            return;
+        if (complaint.isOpen()) {
+            context.emit(new AgencyMonthKey(agency, year, month), 1);
         }
-
-        context.emit(new AverageOpenComplaintKey(type, year, month), new MonthCount(year, month, 1));
     }
 }

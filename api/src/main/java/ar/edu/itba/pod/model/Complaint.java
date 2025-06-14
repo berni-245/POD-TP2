@@ -41,6 +41,7 @@ public abstract class Complaint implements DataSerializable {
     public String getNeighborhood() { return neighborhood; }
     public double getLatitude() { return latitude; }
     public double getLongitude() { return longitude; }
+    public abstract boolean isOpen();
 
     @Override
     public void writeData(ObjectDataOutput out) throws IOException {
