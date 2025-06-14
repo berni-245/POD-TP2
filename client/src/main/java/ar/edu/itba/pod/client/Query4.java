@@ -1,7 +1,7 @@
 package ar.edu.itba.pod.client;
 
 import ar.edu.itba.pod.collator.CountComplaintTypePercentageCollator;
-import ar.edu.itba.pod.common.StreetClaimTypePair;
+import ar.edu.itba.pod.common.StreetComplaintTypePair;
 import ar.edu.itba.pod.key_predicate.FilterForNeighborhoodKeyPred;
 import ar.edu.itba.pod.mapper.CountComplaintTypeMapper;
 import ar.edu.itba.pod.mapper.StreetComplaintTypeMapper;
@@ -93,20 +93,22 @@ public class Query4 {
             KeyValueSource<String, Complaint> complaintsVS = KeyValueSource.fromMultiMap(complainsMap);
 
             // Job remove duplicates (first map-reduce)
-            JobTracker jobTrackerDup = hazelcastInstance.getJobTracker(groupCode + "-remove-duplicates-" + city);
+            JobTracker jobTrackerDup = hazelcastInstance.getJobTracker(
+                    groupCode + "-remove-duplicates-" + city
+            );
             Job<String, Complaint> removeDuplicates = jobTrackerDup.newJob(complaintsVS);
-            ICompletableFuture<Map<StreetClaimTypePair, String>> futureDup = removeDuplicates
+            ICompletableFuture<Map<StreetComplaintTypePair, String>> futureDup = removeDuplicates
                     .keyPredicate(new FilterForNeighborhoodKeyPred(neighborhood))
                     .mapper(new StreetComplaintTypeMapper())
                     .reducer(new StreetComplaintTypeReducerFactory())
                     .submit();
-            Map<StreetClaimTypePair, String> resultDup = futureDup.get();
+            Map<StreetComplaintTypePair, String> resultDup = futureDup.get();
 
             // Parse for next job
             MultiMap<String, String> complaintsTypesPerStreetMap = hazelcastInstance.getMultiMap(
                     groupCode + "-unique-street-and-complaints-" + city
             );
-            for (StreetClaimTypePair elem : resultDup.keySet()) {
+            for (StreetComplaintTypePair elem : resultDup.keySet()) {
                 complaintsTypesPerStreetMap.put(elem.getStreet(), elem.getClaimType());
             }
             KeyValueSource<String, String> complaintsTypesPerStreetVS = KeyValueSource.fromMultiMap(complaintsTypesPerStreetMap);
@@ -140,8 +142,6 @@ public class Query4 {
             } catch (IOException e) {
                 System.out.println("Error writing the output file");
             }
-
-
         }
         catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);

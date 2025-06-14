@@ -7,15 +7,15 @@ import com.hazelcast.nio.serialization.DataSerializable;
 import java.io.IOException;
 import java.util.Objects;
 
-public class AgencyClaimTypePair implements DataSerializable {
+public class AgencyComplaintTypePair implements DataSerializable, Comparable<AgencyComplaintTypePair> {
     private String agency;
     private String claimType;
 
-    public AgencyClaimTypePair() {
+    public AgencyComplaintTypePair() {
         // empty for hazelcast
     }
 
-    public AgencyClaimTypePair(String agency, String claimType) {
+    public AgencyComplaintTypePair(String agency, String claimType) {
         this.agency = agency;
         this.claimType = claimType;
     }
@@ -33,10 +33,19 @@ public class AgencyClaimTypePair implements DataSerializable {
     }
 
     @Override
+    public int compareTo(AgencyComplaintTypePair o) {
+        int cmp = claimType.compareTo(o.claimType);
+        if (cmp == 0) {
+            cmp = agency.compareTo(o.agency);
+        }
+        return cmp;
+    }
+
+    @Override
     public boolean equals(Object other) {
-        return other instanceof AgencyClaimTypePair agencyClaimTypePair &&
-                agency.equals(agencyClaimTypePair.agency) &&
-                claimType.equals(agencyClaimTypePair.claimType);
+        return other instanceof AgencyComplaintTypePair agencyComplaintTypePair &&
+                agency.equals(agencyComplaintTypePair.agency) &&
+                claimType.equals(agencyComplaintTypePair.claimType);
     }
 
     @Override

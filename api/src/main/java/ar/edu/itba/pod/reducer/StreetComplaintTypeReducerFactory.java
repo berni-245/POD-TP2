@@ -1,13 +1,13 @@
 package ar.edu.itba.pod.reducer;
 
-import ar.edu.itba.pod.common.StreetClaimTypePair;
+import ar.edu.itba.pod.common.StreetComplaintTypePair;
 import com.hazelcast.mapreduce.Reducer;
 import com.hazelcast.mapreduce.ReducerFactory;
 
 @SuppressWarnings("deprecation")
-public class StreetComplaintTypeReducerFactory implements ReducerFactory<StreetClaimTypePair, String, String> {
+public class StreetComplaintTypeReducerFactory implements ReducerFactory<StreetComplaintTypePair, String, String> {
     @Override
-    public Reducer<String, String> newReducer(StreetClaimTypePair streetClaimTypePair) {
+    public Reducer<String, String> newReducer(StreetComplaintTypePair streetComplaintTypePair) {
         return new Reducer<>() {
             @Override
             public void reduce(String s) {
@@ -15,7 +15,7 @@ public class StreetComplaintTypeReducerFactory implements ReducerFactory<StreetC
 
             @Override
             public String finalizeReduce() {
-                return streetClaimTypePair.getClaimType();
+                return streetComplaintTypePair.getClaimType();
             }
         };
     }

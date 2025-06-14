@@ -1,16 +1,16 @@
 package ar.edu.itba.pod.mapper;
 
-import ar.edu.itba.pod.common.StreetClaimTypePair;
+import ar.edu.itba.pod.common.StreetComplaintTypePair;
 import ar.edu.itba.pod.model.Complaint;
 import com.hazelcast.mapreduce.Context;
 import com.hazelcast.mapreduce.Mapper;
 
 @SuppressWarnings("deprecation")
-public class StreetComplaintTypeMapper implements Mapper<String, Complaint, StreetClaimTypePair, String> {
+public class StreetComplaintTypeMapper implements Mapper<String, Complaint, StreetComplaintTypePair, String> {
     @Override
-    public void map(String neighborhood, Complaint complaint, Context<StreetClaimTypePair, String> context) {
+    public void map(String neighborhood, Complaint complaint, Context<StreetComplaintTypePair, String> context) {
         context.emit(
-                new StreetClaimTypePair(complaint.getStreet(), complaint.getComplaintType()),
+                new StreetComplaintTypePair(complaint.getStreet(), complaint.getComplaintType()),
                 complaint.getComplaintType()
         );
     }

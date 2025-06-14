@@ -7,15 +7,15 @@ import com.hazelcast.nio.serialization.DataSerializable;
 import java.io.IOException;
 import java.util.Objects;
 
-public class StreetClaimTypePair implements DataSerializable {
+public class StreetComplaintTypePair implements DataSerializable {
     private String street;
     private String claimType;
 
-    public StreetClaimTypePair() {
+    public StreetComplaintTypePair() {
         // empty for hazelcast
     }
 
-    public StreetClaimTypePair(String street, String claimType){
+    public StreetComplaintTypePair(String street, String claimType){
         this.street = street;
         this.claimType = claimType;
     }
@@ -34,9 +34,9 @@ public class StreetClaimTypePair implements DataSerializable {
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof StreetClaimTypePair streetClaimTypePair &&
-                street.equals(streetClaimTypePair.street) &&
-                claimType.equals(streetClaimTypePair.claimType);
+        return other instanceof StreetComplaintTypePair streetComplaintTypePair &&
+                street.equals(streetComplaintTypePair.street) &&
+                claimType.equals(streetComplaintTypePair.claimType);
     }
 
     @Override

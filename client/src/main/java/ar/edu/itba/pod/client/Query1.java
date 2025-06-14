@@ -1,49 +1,50 @@
 package ar.edu.itba.pod.client;
 
+import ar.edu.itba.pod.collator.CountAgencyComplaintTypeCollator;
+import ar.edu.itba.pod.common.AgencyComplaintTypePair;
+import ar.edu.itba.pod.common.StreetComplaintTypePair;
+import ar.edu.itba.pod.key_predicate.FilterForNeighborhoodKeyPred;
+import ar.edu.itba.pod.mapper.CountAgencyComplaintTypeMapper;
+import ar.edu.itba.pod.mapper.StreetComplaintTypeMapper;
+import ar.edu.itba.pod.model.Complaint;
+import ar.edu.itba.pod.reducer.CountAgencyComplaintTypeReducerFactory;
+import ar.edu.itba.pod.reducer.StreetComplaintTypeReducerFactory;
+import ar.edu.itba.pod.util.City;
+import ar.edu.itba.pod.util.CsvComplaintParser;
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.ClientNetworkConfig;
 import com.hazelcast.config.GroupConfig;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.ICompletableFuture;
+import com.hazelcast.core.IMap;
 import com.hazelcast.core.MultiMap;
+import com.hazelcast.mapreduce.Job;
 import com.hazelcast.mapreduce.JobTracker;
 import com.hazelcast.mapreduce.KeyValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
 
 public class Query1 {
 
     private static final Logger logger = LoggerFactory.getLogger(Query1.class);
-    private static final List<String> csvFormat1 = List.of(
-            "Unique Key", "Created Date", "Agency Name",
-            "Complaint Type", "Incident Address", "Status",
-            "Borough", "Latitude", "Longitude"
-    );
-    private static final List<String> csvFormat2 = List.of(
-            "SR_NUMBER", "SR_SHORT_CODE", "OWNER_DEPARTMENT",
-            "STATUS", "CREATED_DATE", "STREET_NUMBER",
-            "STREET_DIRECTION", "STREET_NAME", "STREET_TYPE",
-            "COMMUNITY_AREA", "LATITUDE", "LONGITUDE"
-    );
 
-    public static void main(String[] args) throws InterruptedException, IOException, ExecutionException {
+    @SuppressWarnings("deprecation")
+    public static void main(String[] args) {
         logger.info("Query1 Client Starting ...");
 
-/*
-        // TODO parsear addressesRawString para clientNetworkConfig más abajo
-        final String addressesRawString = System.getProperty("addresses");
-        final String city = System.getProperty("city");
+
+        String addressesRawString = System.getProperty("addresses");
+        String city = System.getProperty("city");
         final String inPath = System.getProperty("inPath");
         final String outPath = System.getProperty("outPath");
 
@@ -51,21 +52,19 @@ public class Query1 {
             System.err.println("Missing argument (Query1 Client)");
             return;
         }
-*/
-        // TODO valores hardcodeados, usar parsing de arriba luego
-        final String city = "NYC";
-        final String inPath = "./data";
-        final String outPath = ".";
 
-
+        city = city.toUpperCase();
 
         try {
             // Group Config
-            GroupConfig groupConfig = new GroupConfig().setName("g3").setPassword("g3-pass");
+            String groupCode = "g3";
+            GroupConfig groupConfig = new GroupConfig().setName(groupCode).setPassword(groupCode + "-pass");
 
             // Client Network Config
             ClientNetworkConfig clientNetworkConfig = new ClientNetworkConfig();
-            clientNetworkConfig.addAddress("127.0.0.1");
+            addressesRawString = addressesRawString.replace("'", "");
+            for (String address : addressesRawString.split(";"))
+                clientNetworkConfig.addAddress(address);
 
             // Client Config
             ClientConfig clientConfig = new ClientConfig().setGroupConfig(groupConfig).setNetworkConfig(clientNetworkConfig);
@@ -73,34 +72,56 @@ public class Query1 {
             // Node Client
             HazelcastInstance hazelcastInstance = HazelcastClient.newHazelcastClient(clientConfig);
 
+            // Path files
+            String complainsPath = inPath + "/serviceRequests" + city + ".csv";
+            String typesPath = inPath + "/serviceTypes" + city + ".csv";
+
+            City cityFormat = CsvComplaintParser.getCityFormat(complainsPath);
+
+            // Initialize KeyValueSource
+            IMap<String, String> typesMap = hazelcastInstance.getMap(
+                    groupCode + "-types-" + city
+            );
+            IMap<String, Complaint> complainsMap = hazelcastInstance.getMap(
+                    groupCode + "-complains-" + city
+            );
+            CsvComplaintParser.parseCsv(complainsPath, typesPath, cityFormat, elem -> complainsMap.put(elem.getId(), elem), typesMap);
+            KeyValueSource<String, Complaint> source = KeyValueSource.fromMap(complainsMap);
+
             // Job Tracker
-            JobTracker jobTracker = hazelcastInstance.getJobTracker("totalClaimsPerAgencyAndClaimType");
+            JobTracker jobTracker = hazelcastInstance.getJobTracker(
+                    groupCode + "-count-agency-and-complaint-type-pair-" + city
+            );
 
-            String claimsDate = "serviceRequests" + city;
-            Stream<String> lines = Files.lines(Paths.get(args[0]), StandardCharsets.UTF_8);
-            String firstCol = Arrays.stream(lines.findFirst().orElseThrow().split(";")).findFirst().orElseThrow();
+            Job<String, Complaint> jobCount = jobTracker.newJob(source);
+            ICompletableFuture<Map<AgencyComplaintTypePair, Integer>> futureCount = jobCount
+                    .mapper(new CountAgencyComplaintTypeMapper())
+                    .reducer(new CountAgencyComplaintTypeReducerFactory())
+                    .submit(new CountAgencyComplaintTypeCollator());
+            Map<AgencyComplaintTypePair, Integer> resultAgencyComplaintTypeCount = futureCount.get();
 
-            List<String> colFormat;
+            // Parse output to csv
+            Path csvPath = Paths.get(outPath, "query1.csv");
 
-            if (firstCol.equals("Unique Key")) {
-                colFormat = csvFormat1;
-//                MultiMap<Integer, AgencyClaimTypePair> rentalsMultiMap = hazelcastInstance.getMultiMap("rentalsByStartStation");
-//                KeyValueSource<Integer, AgencyClaimTypePair> rentalsKeyValueSource = KeyValueSource.fromMultiMap(rentalsMultiMap);
+            List<String> lines = new ArrayList<>();
+            lines.add("type;agency;requests"); // header
 
-                // TODO parsear líneas del csv al mapa
-            }
-            else if (firstCol.equals("SR_NUMBER")) {
-                colFormat = csvFormat2;
-//                MultiMap<String, AgencyClaimTypePair> rentalsMultiMap = hazelcastInstance.getMultiMap("rentalsByStartStation");
-//                KeyValueSource<String, AgencyClaimTypePair> rentalsKeyValueSource = KeyValueSource.fromMultiMap(rentalsMultiMap);
-
-                // TODO parsear líneas del csv al mapa
-            }
-            else {
-                System.err.println("Invalid CSV format");
+            for (Map.Entry<AgencyComplaintTypePair, Integer> elem : resultAgencyComplaintTypeCount.entrySet()) {
+                AgencyComplaintTypePair pair = elem.getKey();
+                String line = pair.getAgency() + ";" + pair.getClaimType() + ";" + elem.getValue();
+                lines.add(line);
             }
 
-        } finally {
+            try {
+                Files.write(csvPath, lines);
+            } catch (IOException e) {
+                System.out.println("Error writing the output file");
+            }
+        }
+        catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+        finally {
             HazelcastClient.shutdownAll();
         }
     }
