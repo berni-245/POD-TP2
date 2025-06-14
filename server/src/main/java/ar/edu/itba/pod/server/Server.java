@@ -38,13 +38,6 @@ public class Server {
                 .setEnabled(false);
         config.setManagementCenterConfig(managementCenterConfig);
 
-        // Opcional: Logger detallado
-//        java.util.logging.Logger rootLogger = LogManager.getLogManager().getLogger("");
-//        rootLogger.setLevel(Level.FINE);
-//        for (Handler h : rootLogger.getHandlers()) {
-//            h.setLevel(Level.FINE);
-//        }
-
         // Start cluster
         Hazelcast.newHazelcastInstance(config);
     }

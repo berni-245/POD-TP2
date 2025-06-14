@@ -33,14 +33,14 @@ import java.util.concurrent.ExecutionException;
 @SuppressWarnings("deprecation")
 public class Query4 {
 
-    private static final Logger logger = LoggerFactory.getLogger(CsvComplaintParser.class);
+    private static final Logger logger = LoggerFactory.getLogger(Query4.class);
 
     public static void main(String[] args) {
         logger.info("Query4 Client Starting ...");
 
         try {
 
-            // Initialize connection to hazelcast
+            // Initialize arguments and connection to hazelcast
             AppInit initConfigurator = new AppInit();
             HazelcastInstance hazelcastInstance = initConfigurator.getHazelcastInstance();
             String groupCode = AppInit.groupCode;
@@ -76,12 +76,12 @@ public class Query4 {
             Job<String, Complaint> removeDuplicates = jobTrackerDup.newJob(complaintsVS);
             logger.info("Inicio del trabajo 1 map/reduce");
             Instant mapReduce1Start = Instant.now();
-            ICompletableFuture<Map<StreetComplaintTypePair, String>> futureDup = removeDuplicates
+            Map<StreetComplaintTypePair, String> resultDup = removeDuplicates
                     .keyPredicate(new FilterForNeighborhoodKeyPred(neighborhood))
                     .mapper(new StreetComplaintTypeMapper())
                     .reducer(new StreetComplaintTypeReducerFactory())
-                    .submit();
-            Map<StreetComplaintTypePair, String> resultDup = futureDup.get();
+                    .submit()
+                    .get();
             Instant mapReduce1End = Instant.now();
             logger.info("Fin del trabajo 1 map/reduce");
 
@@ -104,11 +104,11 @@ public class Query4 {
 
             logger.info("Inicio del trabajo 2 map/reduce");
             Instant mapReduce2Start = Instant.now();
-            ICompletableFuture<Map<String, String>> futureCountDif = countDifComplaintsTypes
+            Map<String, String> resultComplaintTypePercentage = countDifComplaintsTypes
                     .mapper(new CountComplaintTypeMapper())
                     .reducer(new CountComplaintTypeReducerFactory())
-                    .submit(new CountComplaintTypePercentageCollator(typesMap.size()));
-            Map<String, String> resultComplaintTypePercentage = futureCountDif.get();
+                    .submit(new CountComplaintTypePercentageCollator(typesMap.size()))
+                    .get();
             Instant mapReduce2End = Instant.now();
             logger.info("Fin del trabajo 2 map/reduce");
 

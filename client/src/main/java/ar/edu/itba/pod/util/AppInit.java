@@ -56,8 +56,8 @@ public class AppInit {
         return hazelcastInstance;
     }
 
-    public void parseCsv(Consumer<Complaint> addToKeyValueSource, IMap<String, String> types) {
-        CsvComplaintParser.parseCsv(complainsPath, typesPath, cityFormat, addToKeyValueSource, types);
+    public void parseCsv(Consumer<Complaint> eachAddToKeyValueSource, IMap<String, String> types) {
+        CsvComplaintParser.parseCsv(complainsPath, typesPath, cityFormat, eachAddToKeyValueSource, types);
     }
 
     public String getCity() {

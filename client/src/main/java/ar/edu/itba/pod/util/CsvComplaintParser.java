@@ -38,7 +38,7 @@ public class CsvComplaintParser {
         return City.CHI;
     }
 
-    public static void parseCsv(String complaintsPath, String typesPath, City city, Consumer<Complaint> addToKeyValueSource, IMap<String, String> types) {
+    public static void parseCsv(String complaintsPath, String typesPath, City city, Consumer<Complaint> eachAddToKeyValueSource, IMap<String, String> types) {
         switch (city) {
             case CHI -> loadChicagoServiceTypes(typesPath, types);
             case NYC -> loadNewYorkServiceTypes(typesPath, types);
@@ -60,7 +60,7 @@ public class CsvComplaintParser {
                     })
                     .forEach(elem -> {
                         if (types.containsValue(elem.getComplaintType())) // only add it if it belongs to csv types
-                            addToKeyValueSource.accept(elem);
+                            eachAddToKeyValueSource.accept(elem);
                     });
 
         } catch (IOException e) {

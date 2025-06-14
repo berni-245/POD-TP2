@@ -37,7 +37,8 @@ public class Query1 {
         logger.info("Query1 Client Starting ...");
 
         try {
-            // Initialize connection to hazelcast
+
+            // Initialize arguments and connection to hazelcast
             AppInit initConfigurator = new AppInit();
             HazelcastInstance hazelcastInstance = initConfigurator.getHazelcastInstance();
             String groupCode = AppInit.groupCode;
@@ -66,11 +67,11 @@ public class Query1 {
             Job<String, Complaint> jobCount = jobTracker.newJob(source);
             logger.info("Inicio del trabajo map/reduce");
             Instant mapReduceStart = Instant.now();
-            ICompletableFuture<Map<AgencyComplaintTypePair, Integer>> futureCount = jobCount
+            Map<AgencyComplaintTypePair, Integer> resultAgencyComplaintTypeCount = jobCount
                     .mapper(new CountAgencyComplaintTypeMapper())
                     .reducer(new CountAgencyComplaintTypeReducerFactory())
-                    .submit(new CountAgencyComplaintTypeCollator());
-            Map<AgencyComplaintTypePair, Integer> resultAgencyComplaintTypeCount = futureCount.get();
+                    .submit(new CountAgencyComplaintTypeCollator())
+                    .get();
             Instant mapReduceEnd = Instant.now();
             logger.info("Fin del trabajo map/reduce");
 
