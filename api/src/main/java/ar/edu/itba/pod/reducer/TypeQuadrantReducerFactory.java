@@ -8,15 +8,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 @SuppressWarnings("deprecation")
-public class TypeQuadrantReducerFactory implements ReducerFactory<CoordinateNeighborhood,String,Map<String,Long>> {
+public class TypeQuadrantReducerFactory implements ReducerFactory<CoordinateNeighborhood,Map<String,Long>,Map<String,Long>> {
     @Override
-    public Reducer<String, Map<String, Long>> newReducer(CoordinateNeighborhood coordinateNeighborhood) {
+    public Reducer<Map<String,Long>, Map<String, Long>> newReducer(CoordinateNeighborhood coordinateNeighborhood) {
         return new Reducer<>() {
             private final Map<String, Long> count = new HashMap<>();
 
             @Override
-            public void reduce(String s) {
-                count.merge(s,1L, Long::sum);
+            public void reduce(Map<String, Long> map) {
+                for (Map.Entry<String, Long> entry : map.entrySet()) {
+                    count.merge(entry.getKey(), entry.getValue(), Long::sum);
+                }
             }
 
             @Override

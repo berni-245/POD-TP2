@@ -1,6 +1,7 @@
 package ar.edu.itba.pod.client;
 
 import ar.edu.itba.pod.collator.CommonTypeCollator;
+import ar.edu.itba.pod.combiner.TypeCountCombinerFactory;
 import ar.edu.itba.pod.common.CoordinateNeighborhood;
 import ar.edu.itba.pod.mapper.QuadrantTypeMapper;
 import ar.edu.itba.pod.model.Complaint;
@@ -80,6 +81,7 @@ public class Query2 {
             Instant mapReduceStart = Instant.now();
             Map<CoordinateNeighborhood,String> mostCommonByQuadrant = jt.newJob(source)
                     .mapper(new QuadrantTypeMapper())
+                    .combiner(new TypeCountCombinerFactory())
                     .reducer(new TypeQuadrantReducerFactory())
                     .submit(new CommonTypeCollator())
                     .get();
