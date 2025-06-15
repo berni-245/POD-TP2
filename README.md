@@ -4,7 +4,7 @@
 
 En este trabajo práctico de la materia de Programación de Objetos Distribuidos se buscó aplicar los conceptos de conexiones distribuidas aprendidos a lo largo de la cursada en un proyecto de manejar múltiples clientes que realizan distintas queries utilizando Hazelcast. El contexto del tp es de un programa de consultas acerca de reclamos para distintas ciudades. 
 
-[Enunciado](../pod-tp2/docs/TPE2%20Reclamos%20Urbanos.pdf)
+[Enunciado](docs/TPE2%20Reclamos%20Urbanos.pdf)
 
 ### ❗ Requisitos:
 - Java 21
