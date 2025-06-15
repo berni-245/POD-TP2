@@ -69,4 +69,4 @@ nbdist/
 # outputs
 
 query*.csv
-times*.csv
+time*.csv

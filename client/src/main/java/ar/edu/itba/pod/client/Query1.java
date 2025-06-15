@@ -90,7 +90,7 @@ public class Query1 {
             Files.write(csvPath, lines);
 
             // Parse times to csv
-            Path timesCsvPath = Paths.get(initConfigurator.getOutDirectory(), "times1.csv");
+            Path timesCsvPath = Paths.get(initConfigurator.getOutDirectory(), "time1.csv");
             WriteTimesCsv.write(
                     timesCsvPath,
                     new TimeInterval(parseStart, parseEnd),
